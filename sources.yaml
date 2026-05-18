@@ -1,16 +1,19 @@
 # Copy this file to ../sources.yaml and edit selectors.
-# Keep enabled: false until you have checked the site's terms/robots.txt and verified selectors.
+# Keep enabled: true until you have checked the site's terms/robots.txt and verified selectors.
 # Recommended scheduler interval: every 12 hours.
 #
 # Important:
 # - These selectors use the example class names you provided.
 # - They will probably need to be changed per website after inspecting each page.
-# - Keep enabled: false until selectors and robots/terms have been checked.
+# - Keep enabled: true until selectors and robots/terms have been checked.
+# - Optional: use `||` to provide selector alternatives, e.g. ".property-card || .listing-card".
+# - Optional: set `fallback_to_similar_selectors: true` (default) to try common listing selectors.
 
 sources:
   - name: Bristol SU Lettings - Properties To Let
     type: static_css
-    enabled: false
+    enabled: true
+    fallback_to_similar_selectors: true
     url: https://www.bristolsulettings.co.uk/properties-to-let
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -28,7 +31,7 @@ sources:
 
   - name: HYBR - Bristol Student Rentals
     type: static_css
-    enabled: false
+    enabled: true
     url: https://dashboard.hybr.co.uk/search
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -46,7 +49,7 @@ sources:
 
   - name: OpenRent - Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.openrent.co.uk/properties-to-rent/bristol
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -64,7 +67,7 @@ sources:
 
   - name: OpenRent - BS8 Clifton Cotham Redland Area
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.openrent.co.uk/properties-to-rent/bs8
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -82,7 +85,7 @@ sources:
 
   - name: Rightmove - Bristol Studio Flats
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.rightmove.co.uk/property-to-rent/Bristol/studio-flats.html
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -100,7 +103,7 @@ sources:
 
   - name: Rightmove - Bristol 1 Bedroom Flats
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.rightmove.co.uk/property-to-rent/Bristol/1-bed-flats.html
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -118,7 +121,7 @@ sources:
 
   - name: Zoopla - Bristol Studio Flats
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.zoopla.co.uk/to-rent/flats/studio/bristol/
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -136,7 +139,7 @@ sources:
 
   - name: Zoopla - Bristol 1 Bedroom Flats
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.zoopla.co.uk/to-rent/flats/1-bedroom/bristol/
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -154,7 +157,7 @@ sources:
 
   - name: OnTheMarket - Bristol Studios
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.onthemarket.com/to-rent/studio/bristol/
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -172,7 +175,7 @@ sources:
 
   - name: OnTheMarket - Bristol Student Accommodation
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.onthemarket.com/student/property/bristol/
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -190,7 +193,7 @@ sources:
 
   - name: UniHomes - University of Bristol Student Accommodation
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.unihomes.co.uk/student-accommodation/bristol/near-university-of-bristol
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -208,7 +211,7 @@ sources:
 
   - name: University Living - University of Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.universityliving.com/united-kingdom/bristol/u/university-of-bristol
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -226,7 +229,7 @@ sources:
 
   - name: Amber Student - University of Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://amberstudent.com/places/search/university-of-bristol-1811043358882
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -244,7 +247,7 @@ sources:
 
   - name: MyStudentHalls - University of Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.mystudenthalls.com/student-accommodation/university-of-bristol/
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -262,7 +265,7 @@ sources:
 
   - name: Unite Students - Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.unitestudents.com/student-accommodation/bristol
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -280,7 +283,7 @@ sources:
 
   - name: SpareRoom - Bristol Studios and Flats
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.spareroom.co.uk/flatshare/bristol
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
@@ -298,7 +301,7 @@ sources:
 
   - name: Roomies - Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.roomies.co.uk/rooms/bristol-city-of-bristol-england
     respect_robots_txt: true
     user_agent: bristol-housing-dashboard/0.1 personal-use

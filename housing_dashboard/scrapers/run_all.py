@@ -20,18 +20,40 @@ def _write_backup(trigger: str) -> None:
         print(f"[backup] ERROR: {exc}", file=sys.stderr)
 
 
+def _log_runner_event(status: str, message: str, source: str = "scraper_runner") -> None:
+    started = now_utc_iso()
+    with get_connection(CONFIG.database_path) as conn:
+        insert_run_log(
+            conn,
+            started_at=started,
+            finished_at=now_utc_iso(),
+            source=source,
+            status=status,
+            message=message,
+            inserted_or_updated=0,
+        )
+        conn.commit()
+
+
 def run_all_scrapers(sources_path: str | Path = "sources.yaml", trigger: str = "manual") -> int:
     init_db(CONFIG.database_path)
     sources_path = Path(sources_path)
     total = 0
     try:
         if not sources_path.exists():
-            print(f"No sources file found at {sources_path}. Nothing to scrape.")
+            message = f"No sources file found at {sources_path}. Nothing to scrape."
+            print(message)
+            _log_runner_event(status="error", message=message)
             return 0
 
         scrapers = build_static_scrapers_from_yaml(str(sources_path))
         if not scrapers:
-            print("No enabled scrapers found in sources file.")
+            message = (
+                f"No enabled scrapers found in {sources_path}. "
+                "Set at least one source with enabled: true."
+            )
+            print(message)
+            _log_runner_event(status="skipped", message=message)
             return 0
 
         for scraper in scrapers:

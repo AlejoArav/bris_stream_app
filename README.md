@@ -134,6 +134,12 @@ Accepted boolean values include `true`, `false`, `yes`, `no`, `1`, `0`.
 
 Copy `examples/sources.example.yaml` to `sources.yaml`, then edit CSS selectors for each source you are legally and technically allowed to scrape.
 
+Notes:
+
+- Set `enabled: true` for at least one source, otherwise the scraper exits immediately with no updates.
+- You can provide selector alternatives with `||`, for example: `card: ".property-card || .listing-card || article"`.
+- Keep `fallback_to_similar_selectors: true` (default) to let the scraper try common property/listing selectors when configured selectors do not match.
+
 Run once manually:
 
 ```bash

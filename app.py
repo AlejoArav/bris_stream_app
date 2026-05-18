@@ -20,6 +20,7 @@ from housing_dashboard.enrichment.geocode import enrich_coordinates
 from housing_dashboard.models import Listing
 from housing_dashboard.scoring import enrich_and_score_listing
 from housing_dashboard.scrapers.run_all import run_all_scrapers
+from housing_dashboard.scrapers.static_css import build_static_scrapers_from_yaml
 from housing_dashboard.text_utils import (
     extract_postcode,
     infer_property_type,
@@ -31,7 +32,8 @@ from housing_dashboard.text_utils import (
 
 st.set_page_config(page_title="Bristol Housing Dashboard", page_icon="🏠", layout="wide")
 init_db(CONFIG.database_path)
-SOURCES_PATH = Path("sources.yaml")
+APP_ROOT = Path(__file__).resolve().parent
+SOURCES_PATH = APP_ROOT / "sources.yaml"
 
 
 @st.cache_resource(show_spinner=False)
@@ -357,11 +359,33 @@ with tab_import:
 
 with tab_runs:
     st.subheader("Run a web scrape")
+    if not SOURCES_PATH.exists():
+        st.warning(f"`sources.yaml` was not found at `{SOURCES_PATH}`.")
+    else:
+        try:
+            enabled_scrapers = build_static_scrapers_from_yaml(str(SOURCES_PATH))
+            if not enabled_scrapers:
+                st.warning("No scraping sources are enabled. Set `enabled: true` for at least one source in `sources.yaml`.")
+            else:
+                st.caption(f"Enabled sources: {len(enabled_scrapers)}")
+        except Exception as exc:
+            st.error(f"Failed to parse sources config: {exc}")
+
     if st.button("Run web scrape now", type="primary"):
         with st.spinner("Running web scrape and writing backup snapshot..."):
             inserted = run_all_scrapers(sources_path=SOURCES_PATH, trigger="manual_button")
-        st.success(f"Web scrape complete. Inserted/updated {inserted} listings.")
-        st.rerun()
+        if inserted > 0:
+            st.success(f"Web scrape complete. Inserted/updated {inserted} listings.")
+        else:
+            latest = load_run_log_df(CONFIG.database_path, limit=1)
+            if not latest.empty:
+                row = latest.iloc[0]
+                st.warning(
+                    "Web scrape finished with 0 updates. "
+                    f"Latest runner message: {row.get('message', 'No message available')}."
+                )
+            else:
+                st.warning("Web scrape finished with 0 updates. Check source enable flags and selectors.")
 
     st.subheader("Scraper run log")
     log_df = load_run_log_df(CONFIG.database_path)
