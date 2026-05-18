@@ -1,0 +1,21 @@
+services:
+  dashboard:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./sources.yaml:/app/sources.yaml:ro
+    command: streamlit run app.py --server.address=0.0.0.0 --server.port=8501
+
+  scraper:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./sources.yaml:/app/sources.yaml:ro
+    command: python -m housing_dashboard.scrapers.scheduler --sources sources.yaml
+    restart: unless-stopped

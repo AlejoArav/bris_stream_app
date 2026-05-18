@@ -1,0 +1,21 @@
+# Copy this file to ../sources.yaml and edit selectors.
+# Keep enabled: false until you have checked the site's terms/robots.txt and verified selectors.
+
+sources:
+  - name: Example Static Lettings Page
+    type: static_css
+    enabled: false
+    url: https://example.com/properties-to-rent/bristol
+    respect_robots_txt: true
+    user_agent: bristol-housing-dashboard/0.1 personal-use
+    selectors:
+      card: ".property-card"
+      title: ".property-title"
+      url: "a.property-link"
+      price: ".property-price"
+      address: ".property-address"
+      description: ".property-description"
+      available_from: ".available-date"
+      bedrooms: ".bedrooms"
+      bills_included: ".bills"
+      internet_included: ".internet"
