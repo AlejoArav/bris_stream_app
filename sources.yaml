@@ -8,14 +8,20 @@
 # - Keep enabled: true until selectors and robots/terms have been checked.
 # - Optional: use `||` to provide selector alternatives, e.g. ".property-card || .listing-card".
 # - Optional: set `fallback_to_similar_selectors: true` (default) to try common listing selectors.
+# - Optional: set `enable_whole_page_block_discovery: true` (default) to search the whole HTML for listing blocks.
+# - Optional: set `allow_if_robots_unavailable: true` (default) to scrape if robots.txt cannot be fetched.
+# - Optional: set `ignore_robots_restrictions: true` (default) to scrape even when robots disallows the path.
 
 sources:
   - name: Bristol SU Lettings - Properties To Let
     type: static_css
     enabled: true
     fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
     url: https://www.bristolsulettings.co.uk/properties-to-let
     respect_robots_txt: true
+    allow_if_robots_unavailable: true
+    ignore_robots_restrictions: true
     user_agent: bristol-housing-dashboard/0.1 personal-use
     selectors:
       card: ".property-card"

@@ -24,6 +24,18 @@ from ..text_utils import (
 )
 from .base import BaseScraper, ScrapeResult, deduplicate_listings
 
+FIELD_KEYWORDS: dict[str, list[str]] = {
+    "title": ["title", "name", "headline", "property"],
+    "url": ["link", "url", "href", "details"],
+    "price": ["price", "rent", "pcm", "per-month", "permonth", "pw", "weekly"],
+    "address": ["address", "location", "area", "postcode"],
+    "description": ["description", "summary", "details", "excerpt"],
+    "available_from": ["available", "move", "date"],
+    "bedrooms": ["bed", "bedroom", "beds", "room"],
+    "bills_included": ["bills", "bill", "utilities", "included"],
+    "internet_included": ["internet", "wifi", "broadband", "included"],
+}
+
 FIELD_FALLBACK_SELECTORS: dict[str, list[str]] = {
     "title": [
         "[class*='title']",
@@ -84,6 +96,11 @@ CARD_FALLBACK_SELECTORS: list[str] = [
     "article",
 ]
 
+PROPERTY_BLOCK_HINTS_RE = re.compile(
+    r"\b(studio|flat|apartment|bed|bedroom|to let|for rent|pcm|per month|pw)\b",
+    re.I,
+)
+
 
 @dataclass
 class StaticCssScraper(BaseScraper):
@@ -100,21 +117,40 @@ class StaticCssScraper(BaseScraper):
     user_agent: str = "bristol-housing-dashboard/0.1 personal-use"
     timeout: int = 20
     respect_robots_txt: bool = True
+    allow_if_robots_unavailable: bool = True
+    ignore_robots_restrictions: bool = True
     fallback_to_similar_selectors: bool = True
+    enable_whole_page_block_discovery: bool = True
 
-    def _allowed_by_robots(self) -> bool:
+    def _allowed_by_robots(self) -> tuple[bool, str | None]:
         if not self.respect_robots_txt:
-            return True
+            return True, "Robots checks disabled by config."
         parsed = urlparse(self.url)
         robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
         rp = urllib.robotparser.RobotFileParser()
         try:
             rp.set_url(robots_url)
             rp.read()
-            return rp.can_fetch(self.user_agent, self.url)
+            if rp.can_fetch(self.user_agent, self.url):
+                return True, None
+            if self.ignore_robots_restrictions:
+                return True, "Robots disallowed this path; continuing due ignore_robots_restrictions=true."
+            return False, "Skipped: robots.txt disallowed this user agent/path."
         except Exception:
-            # If robots cannot be fetched, fail closed for safety.
-            return False
+            if self.allow_if_robots_unavailable:
+                return True, "robots.txt unavailable; continuing due allow_if_robots_unavailable=true."
+            return False, "Skipped: robots.txt unavailable and allow_if_robots_unavailable=false."
+
+    @staticmethod
+    def _extract_near_keyword(text: str, keywords: list[str], span: int = 48) -> str | None:
+        low = text.lower()
+        for keyword in keywords:
+            idx = low.find(keyword)
+            if idx >= 0:
+                start = max(0, idx - span)
+                end = min(len(text), idx + len(keyword) + span)
+                return text[start:end].strip()
+        return None
 
     def _configured_selector_candidates(self, selector_name: str) -> list[str]:
         raw = self.selectors.get(selector_name)
@@ -143,6 +179,16 @@ class StaticCssScraper(BaseScraper):
             for selector in FIELD_FALLBACK_SELECTORS.get(selector_name, []):
                 if selector not in candidates:
                     candidates.append(selector)
+            for keyword in FIELD_KEYWORDS.get(selector_name, []):
+                for selector in [
+                    f"[class*='{keyword}']",
+                    f"[id*='{keyword}']",
+                    f"[data-testid*='{keyword}']",
+                    f"[aria-label*='{keyword}']",
+                    f"[itemprop*='{keyword}']",
+                ]:
+                    if selector not in candidates:
+                        candidates.append(selector)
         return candidates
 
     def _select_first(self, node: Any, selectors: list[str]) -> tuple[Any | None, str | None]:
@@ -226,14 +272,50 @@ class StaticCssScraper(BaseScraper):
 
         if best_selector and best_cards:
             return best_cards, best_selector, attempted, True
+        if self.enable_whole_page_block_discovery:
+            discovered_cards = self._discover_cards_by_content(soup)
+            if discovered_cards:
+                attempted.append("__whole_page_block_discovery__")
+                return discovered_cards, "__whole_page_block_discovery__", attempted, True
         return [], None, attempted, True
 
+    def _discover_cards_by_content(self, soup: BeautifulSoup) -> list[Any]:
+        candidates: list[Any] = []
+        for node in soup.find_all(["article", "li", "div", "section"]):
+            text = clean_text(node.get_text(" ", strip=True)) or ""
+            if len(text) < 30 or len(text) > 1800:
+                continue
+            if not re.search(r"£\s?\d{2,6}", text):
+                continue
+            if not PROPERTY_BLOCK_HINTS_RE.search(text):
+                continue
+            if not node.find("a", href=True):
+                continue
+            candidates.append(node)
+            if len(candidates) >= 450:
+                break
+
+        if not candidates:
+            return []
+
+        candidate_ids = {id(node) for node in candidates}
+        deduped: list[Any] = []
+        for node in candidates:
+            parent_candidate = node.find_parent(lambda parent: id(parent) in candidate_ids)
+            if parent_candidate is None:
+                deduped.append(node)
+
+        if len(deduped) < 2:
+            return []
+        return deduped[:200]
+
     def scrape(self) -> ScrapeResult:
-        if not self._allowed_by_robots():
+        allowed, robots_note = self._allowed_by_robots()
+        if not allowed:
             return ScrapeResult(
                 source=self.source_name,
                 listings=[],
-                message="Skipped: robots.txt did not allow this user agent, or robots.txt was unavailable.",
+                message=robots_note or "Skipped due robots policy.",
             )
 
         headers = {"User-Agent": self.user_agent}
@@ -246,6 +328,7 @@ class StaticCssScraper(BaseScraper):
 
         listings: list[Listing] = []
         for idx, card in enumerate(cards):
+            card_text = clean_text(card.get_text(" ", strip=True)) or ""
             title, title_selector = self._get_text(card, "title", include_fallback=self.fallback_to_similar_selectors)
             if title_selector:
                 selector_usage["title"].add(title_selector)
@@ -259,6 +342,8 @@ class StaticCssScraper(BaseScraper):
             price_text, price_selector = self._get_text(card, "price", include_fallback=self.fallback_to_similar_selectors)
             if price_selector:
                 selector_usage["price"].add(price_selector)
+            if not price_text:
+                price_text = self._extract_near_keyword(card_text, FIELD_KEYWORDS["price"])
 
             address_text, address_selector = self._get_text(
                 card,
@@ -267,6 +352,8 @@ class StaticCssScraper(BaseScraper):
             )
             if address_selector:
                 selector_usage["address"].add(address_selector)
+            if not address_text:
+                address_text = self._extract_near_keyword(card_text, FIELD_KEYWORDS["address"])
 
             description, description_selector = self._get_text(
                 card,
@@ -275,6 +362,8 @@ class StaticCssScraper(BaseScraper):
             )
             if description_selector:
                 selector_usage["description"].add(description_selector)
+            if not description and card_text:
+                description = card_text[:380]
 
             available_from, available_selector = self._get_text(
                 card,
@@ -283,6 +372,8 @@ class StaticCssScraper(BaseScraper):
             )
             if available_selector:
                 selector_usage["available_from"].add(available_selector)
+            if not available_from:
+                available_from = self._extract_near_keyword(card_text, FIELD_KEYWORDS["available_from"])
 
             bedrooms_text, bedrooms_selector = self._get_text(
                 card,
@@ -291,7 +382,7 @@ class StaticCssScraper(BaseScraper):
             )
             if bedrooms_selector:
                 selector_usage["bedrooms"].add(bedrooms_selector)
-            bedrooms_text = bedrooms_text or title
+            bedrooms_text = bedrooms_text or self._extract_near_keyword(card_text, FIELD_KEYWORDS["bedrooms"]) or title
 
             bills_text, bills_selector = self._get_text(
                 card,
@@ -300,6 +391,8 @@ class StaticCssScraper(BaseScraper):
             )
             if bills_selector:
                 selector_usage["bills_included"].add(bills_selector)
+            if not bills_text:
+                bills_text = self._extract_near_keyword(card_text, FIELD_KEYWORDS["bills_included"])
 
             internet_text, internet_selector = self._get_text(
                 card,
@@ -308,8 +401,10 @@ class StaticCssScraper(BaseScraper):
             )
             if internet_selector:
                 selector_usage["internet_included"].add(internet_selector)
+            if not internet_text:
+                internet_text = self._extract_near_keyword(card_text, FIELD_KEYWORDS["internet_included"])
 
-            combined = " ".join(filter(None, [title, price_text, address_text, description]))
+            combined = " ".join(filter(None, [title, price_text, address_text, description, card_text]))
             price_pcm = parse_price_pcm(price_text or combined)
             bedrooms = parse_bedrooms(bedrooms_text or combined)
             postcode = extract_postcode(address_text or combined)
@@ -358,10 +453,11 @@ class StaticCssScraper(BaseScraper):
             fallback_note = f" Used fallback card selector '{card_selector_used}'."
         elif card_selector_used:
             fallback_note = f" Used configured card selector '{card_selector_used}'."
+        robots_note_text = f" {robots_note}" if robots_note else ""
         return ScrapeResult(
             source=self.source_name,
             listings=listings,
-            message=f"Fetched {len(listings)} listings from {len(cards)} cards.{fallback_note}",
+            message=f"Fetched {len(listings)} listings from {len(cards)} cards.{fallback_note}{robots_note_text}",
         )
 
 
@@ -384,7 +480,10 @@ def build_static_scrapers_from_yaml(path: str) -> list[StaticCssScraper]:
                 selectors=source["selectors"],
                 user_agent=source.get("user_agent", "bristol-housing-dashboard/0.1 personal-use"),
                 respect_robots_txt=source.get("respect_robots_txt", True),
+                allow_if_robots_unavailable=source.get("allow_if_robots_unavailable", True),
+                ignore_robots_restrictions=source.get("ignore_robots_restrictions", True),
                 fallback_to_similar_selectors=source.get("fallback_to_similar_selectors", True),
+                enable_whole_page_block_discovery=source.get("enable_whole_page_block_discovery", True),
             )
         )
     return scrapers

@@ -139,6 +139,9 @@ Notes:
 - Set `enabled: true` for at least one source, otherwise the scraper exits immediately with no updates.
 - You can provide selector alternatives with `||`, for example: `card: ".property-card || .listing-card || article"`.
 - Keep `fallback_to_similar_selectors: true` (default) to let the scraper try common property/listing selectors when configured selectors do not match.
+- Keep `enable_whole_page_block_discovery: true` (default) to scan full-page HTML for property-like blocks when card selectors fail.
+- `allow_if_robots_unavailable: true` (default) allows scraping when robots.txt cannot be fetched.
+- `ignore_robots_restrictions: true` (default) allows scraping even if robots disallows the path.
 
 Run once manually:
 
