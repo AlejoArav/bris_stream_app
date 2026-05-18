@@ -113,6 +113,8 @@ IDEAL_WALKING_MINUTES=30
 EXPECTED_BILLS_PCM=180
 EXPECTED_INTERNET_PCM=30
 SCRAPER_INTERVAL_HOURS=12
+RUN_ON_STARTUP=true
+SCRAPE_BACKUPS_DIR=data/scrape_backups
 ENABLE_ONLINE_ENRICHMENT=false
 ```
 
@@ -143,6 +145,12 @@ Run scheduler:
 ```bash
 python -m housing_dashboard.scrapers.scheduler --sources sources.yaml
 ```
+
+## App-triggered scraping and backups
+
+- The Streamlit app can run one scrape automatically at startup when `RUN_ON_STARTUP=true`.
+- In the **Run log** tab, use **Run web scrape now** for on-demand scraping.
+- Every scrape writes a timestamped JSON backup and updates `latest_scrape_backup.json` in `SCRAPE_BACKUPS_DIR`.
 
 ## How scoring works
 

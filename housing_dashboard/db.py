@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 from typing import Iterable
@@ -56,6 +57,16 @@ CREATE TABLE IF NOT EXISTS run_log (
     message TEXT,
     inserted_or_updated INTEGER DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS scrape_backups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scraped_at TEXT NOT NULL,
+    trigger TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    listing_count INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_scrape_backups_scraped_at ON scrape_backups(scraped_at DESC);
 """
 
 
@@ -231,6 +242,63 @@ def load_run_log_df(db_path: str | Path, limit: int = 50) -> pd.DataFrame:
     with get_connection(db_path) as conn:
         return pd.read_sql_query(
             "SELECT * FROM run_log ORDER BY started_at DESC LIMIT ?",
+            conn,
+            params=(limit,),
+        )
+
+
+def create_scrape_backup(
+    db_path: str | Path,
+    backups_dir: str | Path,
+    trigger: str,
+) -> Path:
+    init_db(db_path)
+    scraped_at = now_utc_iso()
+    safe_timestamp = scraped_at.replace(":", "-").replace("+00:00", "Z")
+
+    with get_connection(db_path) as conn:
+        listings_df = pd.read_sql_query(
+            "SELECT * FROM listings ORDER BY last_seen DESC",
+            conn,
+        )
+
+    records = json.loads(listings_df.to_json(orient="records", date_format="iso"))
+    payload = {
+        "scraped_at": scraped_at,
+        "trigger": trigger,
+        "listing_count": len(records),
+        "listings": records,
+    }
+
+    backup_dir_path = Path(backups_dir)
+    backup_dir_path.mkdir(parents=True, exist_ok=True)
+    snapshot_path = backup_dir_path / f"scrape_backup_{safe_timestamp}.json"
+    latest_path = backup_dir_path / "latest_scrape_backup.json"
+
+    with snapshot_path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    with latest_path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    with get_connection(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO scrape_backups (scraped_at, trigger, file_path, listing_count)
+            VALUES (?, ?, ?, ?)
+            """,
+            (scraped_at, trigger, str(snapshot_path), len(records)),
+        )
+        conn.commit()
+
+    return snapshot_path
+
+
+def load_scrape_backups_df(db_path: str | Path, limit: int = 20) -> pd.DataFrame:
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        return pd.read_sql_query(
+            "SELECT * FROM scrape_backups ORDER BY scraped_at DESC LIMIT ?",
             conn,
             params=(limit,),
         )

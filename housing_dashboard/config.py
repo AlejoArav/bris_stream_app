@@ -41,6 +41,7 @@ def _csv_env(name: str, default: Iterable[str]) -> list[str]:
 @dataclass(frozen=True)
 class AppConfig:
     database_path: Path = Path(os.getenv("DATABASE_PATH", "data/housing.sqlite"))
+    scrape_backups_dir: Path = Path(os.getenv("SCRAPE_BACKUPS_DIR", "data/scrape_backups"))
 
     target_label: str = os.getenv("TARGET_LABEL", "University of Bristol Clifton Campus / Beacon House")
     target_lat: float = _float_env("TARGET_LAT", 51.4563)

@@ -20,7 +20,7 @@ def main() -> None:
         run_all_scrapers,
         "interval",
         hours=interval,
-        args=[args.sources],
+        kwargs={"sources_path": args.sources, "trigger": "scheduler"},
         id="housing_scraper",
         replace_existing=True,
         max_instances=1,
@@ -30,7 +30,7 @@ def main() -> None:
     print(f"Scheduled scraping every {interval} hours.")
     if CONFIG.run_on_startup:
         print("RUN_ON_STARTUP=true; running scraper once now.")
-        run_all_scrapers(args.sources)
+        run_all_scrapers(args.sources, trigger="scheduler_startup")
 
     scheduler.start()
 

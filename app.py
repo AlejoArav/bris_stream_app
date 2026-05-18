@@ -11,6 +11,7 @@ from housing_dashboard.db import (
     get_connection,
     init_db,
     load_listings_df,
+    load_scrape_backups_df,
     load_run_log_df,
     update_listing_status,
     upsert_listing,
@@ -18,6 +19,7 @@ from housing_dashboard.db import (
 from housing_dashboard.enrichment.geocode import enrich_coordinates
 from housing_dashboard.models import Listing
 from housing_dashboard.scoring import enrich_and_score_listing
+from housing_dashboard.scrapers.run_all import run_all_scrapers
 from housing_dashboard.text_utils import (
     extract_postcode,
     infer_property_type,
@@ -29,6 +31,14 @@ from housing_dashboard.text_utils import (
 
 st.set_page_config(page_title="Bristol Housing Dashboard", page_icon="🏠", layout="wide")
 init_db(CONFIG.database_path)
+SOURCES_PATH = Path("sources.yaml")
+
+
+@st.cache_resource(show_spinner=False)
+def run_startup_scrape_once(db_path: str, sources_path: str) -> int:
+    # `db_path` is part of the cache key to avoid cross-project cache collisions.
+    _ = db_path
+    return run_all_scrapers(sources_path=sources_path, trigger="app_startup")
 
 
 def bool_display(value):
@@ -146,11 +156,24 @@ def filter_df(df: pd.DataFrame) -> pd.DataFrame:
     return out.sort_values(["score", "last_seen"], ascending=[False, False])
 
 
+if CONFIG.run_on_startup and "startup_scrape_total" not in st.session_state:
+    with st.spinner("Running startup web scrape..."):
+        st.session_state["startup_scrape_total"] = run_startup_scrape_once(
+            str(CONFIG.database_path),
+            str(SOURCES_PATH),
+        )
+    st.session_state["startup_scrape_notice"] = (
+        "Startup web scrape completed: "
+        f"{st.session_state['startup_scrape_total']} listings inserted/updated."
+    )
+
 st.title("🏠 Bristol Housing Dashboard")
 st.caption(
     f"Target: £{CONFIG.max_all_in_pcm:,.0f}/month all-in, self-contained studio/1-bed, "
     f"≤{CONFIG.max_walking_minutes:.0f} min walk to {CONFIG.target_label}."
 )
+if "startup_scrape_notice" in st.session_state:
+    st.info(st.session_state["startup_scrape_notice"])
 
 listings_df = load_listings_df(CONFIG.database_path)
 filtered_df = filter_df(listings_df)
@@ -333,6 +356,13 @@ with tab_import:
     st.download_button("Download CSV template", data=csv_bytes, file_name="manual_import_template.csv", mime="text/csv")
 
 with tab_runs:
+    st.subheader("Run a web scrape")
+    if st.button("Run web scrape now", type="primary"):
+        with st.spinner("Running web scrape and writing backup snapshot..."):
+            inserted = run_all_scrapers(sources_path=SOURCES_PATH, trigger="manual_button")
+        st.success(f"Web scrape complete. Inserted/updated {inserted} listings.")
+        st.rerun()
+
     st.subheader("Scraper run log")
     log_df = load_run_log_df(CONFIG.database_path)
     if log_df.empty:
@@ -340,10 +370,19 @@ with tab_runs:
     else:
         st.dataframe(log_df, hide_index=True, use_container_width=True)
 
+    st.subheader("Backup snapshots")
+    backups_df = load_scrape_backups_df(CONFIG.database_path)
+    if backups_df.empty:
+        st.info("No scrape backups saved yet.")
+    else:
+        st.dataframe(backups_df, hide_index=True, use_container_width=True)
+    st.caption(f"Backup files are stored in: `{CONFIG.scrape_backups_dir}`")
+
 with tab_settings:
     st.subheader("Current configuration")
     st.json({
         "database_path": str(CONFIG.database_path),
+        "scrape_backups_dir": str(CONFIG.scrape_backups_dir),
         "max_all_in_pcm": CONFIG.max_all_in_pcm,
         "soft_max_all_in_pcm": CONFIG.soft_max_all_in_pcm,
         "max_walking_minutes": CONFIG.max_walking_minutes,
@@ -351,6 +390,7 @@ with tab_settings:
         "expected_bills_pcm": CONFIG.expected_bills_pcm,
         "expected_internet_pcm": CONFIG.expected_internet_pcm,
         "scraper_interval_hours": CONFIG.scraper_interval_hours,
+        "run_on_startup": CONFIG.run_on_startup,
         "enable_online_enrichment": CONFIG.enable_online_enrichment,
         "target_label": CONFIG.target_label,
         "target_lat": CONFIG.target_lat,
@@ -361,5 +401,7 @@ with tab_settings:
     st.markdown(
         "Edit `.env` to change these settings. The scraping cadence is controlled by "
         "`SCRAPER_INTERVAL_HOURS`, currently set to "
-        f"**{CONFIG.scraper_interval_hours} hours**."
+        f"**{CONFIG.scraper_interval_hours} hours**. "
+        "Startup scraping is controlled by `RUN_ON_STARTUP`, and backups can be redirected with "
+        "`SCRAPE_BACKUPS_DIR`."
     )
