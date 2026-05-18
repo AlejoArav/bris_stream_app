@@ -148,11 +148,29 @@ def filter_df(df: pd.DataFrame) -> pd.DataFrame:
         out = out[out["walking_minutes"].notna() & (out["walking_minutes"] <= max_walk)]
 
     if self_contained_only:
-        text = (
-            out["title"].fillna("") + " " + out["property_type"].fillna("") + " " + out["description"].fillna("")
-        ).str.lower()
-        reject = text.str.contains("house share|shared house|room in|single occupancy|flat share|hmo room", regex=True)
-        positive = text.str.contains("studio|1 bed|1 bedroom|one bedroom|flat|apartment|self-contained|self contained", regex=True)
+        # Force object dtype before concatenation to avoid pandas/pyarrow string concat kernel issues with nulls.
+        title_text = out["title"].fillna("").astype("object") if "title" in out.columns else pd.Series("", index=out.index)
+        ptype_text = (
+            out["property_type"].fillna("").astype("object")
+            if "property_type" in out.columns
+            else pd.Series("", index=out.index)
+        )
+        desc_text = (
+            out["description"].fillna("").astype("object")
+            if "description" in out.columns
+            else pd.Series("", index=out.index)
+        )
+        text = (title_text + " " + ptype_text + " " + desc_text).str.lower()
+        reject = text.str.contains(
+            "house share|shared house|room in|single occupancy|flat share|hmo room",
+            regex=True,
+            na=False,
+        )
+        positive = text.str.contains(
+            "studio|1 bed|1 bedroom|one bedroom|flat|apartment|self-contained|self contained",
+            regex=True,
+            na=False,
+        )
         out = out[positive & ~reject]
 
     return out.sort_values(["score", "last_seen"], ascending=[False, False])

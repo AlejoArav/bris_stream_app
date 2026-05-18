@@ -182,7 +182,7 @@ class StaticCssScraper(BaseScraper):
         sample = cards[: min(len(cards), 30)]
         score = 0.0
         for card in sample:
-            text = clean_text(card.get_text(" ", strip=True)).lower()
+            text = (clean_text(card.get_text(" ", strip=True)) or "").lower()
             if re.search(r"£\s?\d{2,6}", text):
                 score += 3.0
             if "bed" in text:
