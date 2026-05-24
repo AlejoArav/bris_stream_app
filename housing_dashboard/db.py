@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS listings (
     description TEXT,
     area TEXT,
     walking_minutes REAL,
+    campus_distance_km REAL,
     safety_band TEXT,
     all_in_estimate_pcm REAL,
     score REAL,
@@ -84,6 +85,7 @@ def get_connection(db_path: str | Path) -> sqlite3.Connection:
 def init_db(db_path: str | Path) -> None:
     with get_connection(db_path) as conn:
         conn.executescript(SCHEMA)
+        _ensure_column(conn, "listings", "campus_distance_km", "REAL")
         _ensure_column(conn, "run_log", "quality_status", "TEXT")
         _ensure_column(conn, "run_log", "metrics_json", "TEXT")
         conn.commit()
@@ -121,10 +123,10 @@ def upsert_listing(conn: sqlite3.Connection, listing: Listing) -> None:
         INSERT INTO listings (
             source, external_id, title, url, price_pcm, bills_included, internet_included,
             bedrooms, bathrooms, property_type, address_text, postcode, lat, lon,
-            available_from, description, area, walking_minutes, safety_band,
+            available_from, description, area, walking_minutes, campus_distance_km, safety_band,
             all_in_estimate_pcm, score, status, rejection_reason, notes, raw_json,
             first_seen, last_seen
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(source, external_id) DO UPDATE SET
             title = excluded.title,
             url = excluded.url,
@@ -142,6 +144,7 @@ def upsert_listing(conn: sqlite3.Connection, listing: Listing) -> None:
             description = COALESCE(excluded.description, listings.description),
             area = COALESCE(excluded.area, listings.area),
             walking_minutes = COALESCE(excluded.walking_minutes, listings.walking_minutes),
+            campus_distance_km = COALESCE(excluded.campus_distance_km, listings.campus_distance_km),
             safety_band = COALESCE(excluded.safety_band, listings.safety_band),
             all_in_estimate_pcm = COALESCE(excluded.all_in_estimate_pcm, listings.all_in_estimate_pcm),
             score = COALESCE(excluded.score, listings.score),
@@ -170,6 +173,7 @@ def upsert_listing(conn: sqlite3.Connection, listing: Listing) -> None:
             listing.description,
             listing.area,
             listing.walking_minutes,
+            listing.campus_distance_km,
             listing.safety_band,
             listing.all_in_estimate_pcm,
             listing.score,

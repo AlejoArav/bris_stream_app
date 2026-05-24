@@ -1,7 +1,6 @@
-# Copy to ../sources.yaml and edit as needed.
 # Phase 1 reliability profile:
-# - Only 4 priority sources are enabled.
-# - Non-priority sources are paused (enabled: false) and can be re-enabled in later phases.
+# - All configured sources are enabled for broader testing.
+# - Previously paused sources are now enabled for this test run.
 # - Quality gate defaults: 80% price coverage + 80% location coverage.
 
 sources:
@@ -35,12 +34,20 @@ sources:
 
   - name: HYBR - Bristol Student Rentals
     type: static_css
-    enabled: false
+    enabled: true
     url: https://dashboard.hybr.co.uk/search
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: ".property-card, [data-testid*='listing'], article"
+    scroll_steps: 4
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -82,12 +89,20 @@ sources:
 
   - name: OpenRent - BS8 Clifton Cotham Redland Area
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.openrent.co.uk/properties-to-rent/bs8
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: "[data-cy='listing'], .listing-result, article"
+    scroll_steps: 3
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -102,12 +117,20 @@ sources:
 
   - name: Rightmove - Bristol Studio Flats
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.rightmove.co.uk/property-to-rent/Bristol/studio-flats.html
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: "div.propertyCard, div[data-test='propertyCard'], article"
+    scroll_steps: 4
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -149,12 +172,20 @@ sources:
 
   - name: Zoopla - Bristol Studio Flats
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.zoopla.co.uk/to-rent/flats/studio/bristol/
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: "div[data-testid='regular-listing'], [data-testid*='listing'], article"
+    scroll_steps: 4
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -196,12 +227,20 @@ sources:
 
   - name: OnTheMarket - Bristol Studios
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.onthemarket.com/to-rent/studio/bristol/
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: "[data-testid*='property-card'], li[class*='property'], article"
+    scroll_steps: 4
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -216,12 +255,20 @@ sources:
 
   - name: OnTheMarket - Bristol Student Accommodation
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.onthemarket.com/student/property/bristol/
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: "[data-testid*='property-card'], li[class*='property'], article"
+    scroll_steps: 4
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -236,12 +283,20 @@ sources:
 
   - name: UniHomes - University of Bristol Student Accommodation
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.unihomes.co.uk/student-accommodation/bristol/near-university-of-bristol
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: ".property-card, article, [class*='listing']"
+    scroll_steps: 3
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -256,12 +311,20 @@ sources:
 
   - name: University Living - University of Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.universityliving.com/united-kingdom/bristol/u/university-of-bristol
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: ".property-card, article, [class*='listing']"
+    scroll_steps: 4
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -276,12 +339,20 @@ sources:
 
   - name: Amber Student - University of Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://amberstudent.com/places/search/university-of-bristol-1811043358882
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: ".property-card, article, [class*='listing']"
+    scroll_steps: 4
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -296,12 +367,20 @@ sources:
 
   - name: MyStudentHalls - University of Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.mystudenthalls.com/student-accommodation/university-of-bristol/
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: ".property-card, article, [class*='property']"
+    scroll_steps: 4
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -316,12 +395,20 @@ sources:
 
   - name: Unite Students - Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.unitestudents.com/student-accommodation/bristol
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: ".property-card, article, [class*='property']"
+    scroll_steps: 4
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -336,12 +423,20 @@ sources:
 
   - name: SpareRoom - Bristol Studios and Flats
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.spareroom.co.uk/flatshare/bristol
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: "[class*='listing'], [class*='room'], article"
+    scroll_steps: 3
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -356,12 +451,20 @@ sources:
 
   - name: Roomies - Bristol
     type: static_css
-    enabled: false
+    enabled: true
     url: https://www.roomies.co.uk/rooms/bristol-city-of-bristol-england
     user_agent: bristol-housing-dashboard/0.1 personal-use
     respect_robots_txt: true
     allow_if_robots_unavailable: true
     ignore_robots_restrictions: true
+    fallback_to_similar_selectors: true
+    enable_whole_page_block_discovery: true
+    render_mode: browser
+    fallback_render_mode: http
+    wait_for_selector: "[class*='listing'], [class*='room'], article"
+    scroll_steps: 3
+    min_quality_price: 0.8
+    min_quality_location: 0.8
     selectors:
       card: ".property-card"
       title: ".property-title"
@@ -373,3 +476,5 @@ sources:
       bedrooms: ".bedrooms"
       bills_included: ".bills"
       internet_included: ".internet"
+
+

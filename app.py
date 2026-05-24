@@ -266,6 +266,7 @@ with tab_best:
             "bedrooms",
             "property_type",
             "area",
+            "campus_distance_km",
             "walking_minutes",
             "safety_band",
             "available_from",
@@ -280,6 +281,7 @@ with tab_best:
                 "url": st.column_config.LinkColumn("URL"),
                 "all_in_estimate_pcm": st.column_config.NumberColumn("All-in estimate", format="£%.0f"),
                 "price_pcm": st.column_config.NumberColumn("Rent", format="£%.0f"),
+                "campus_distance_km": st.column_config.NumberColumn("Campus dist (km)", format="%.2f"),
                 "score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.1f"),
             },
             use_container_width=True,
@@ -301,9 +303,12 @@ with tab_map:
     else:
         st.map(map_df.rename(columns={"lat": "latitude", "lon": "longitude"}), latitude="latitude", longitude="longitude")
         st.dataframe(
-            map_df[["title", "all_in_estimate_pcm", "walking_minutes", "area", "url"]],
+            map_df[["title", "all_in_estimate_pcm", "campus_distance_km", "walking_minutes", "area", "url"]],
             hide_index=True,
-            column_config={"url": st.column_config.LinkColumn("URL")},
+            column_config={
+                "url": st.column_config.LinkColumn("URL"),
+                "campus_distance_km": st.column_config.NumberColumn("Campus dist (km)", format="%.2f"),
+            },
             use_container_width=True,
         )
 

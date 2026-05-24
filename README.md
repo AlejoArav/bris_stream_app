@@ -178,10 +178,11 @@ all_in_estimate = rent + expected bills if bills not included + expected interne
 
 The score prioritizes:
 
-- Price/all-in affordability: 35%
-- Walking time: 25%
-- Area/safety band: 20%
-- Couple/self-contained fit: 15%
+- Price/all-in affordability: 30%
+- Walking time estimate: 20%
+- Distance to campus (closer is better): 15%
+- Area/safety band: 18%
+- Couple/self-contained fit: 12%
 - September availability: 5%
 
 You can adjust this in `housing_dashboard/scoring.py`.

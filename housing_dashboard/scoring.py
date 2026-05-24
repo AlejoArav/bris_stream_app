@@ -3,7 +3,7 @@ from __future__ import annotations
 from .config import AppConfig, CONFIG
 from .models import Listing
 from .text_utils import find_area, looks_self_contained
-from .enrichment.walking_time import estimate_walking_minutes
+from .enrichment.walking_time import estimate_walking_minutes, haversine_km
 
 
 LOW_RISK_AREA_HINTS = {
@@ -61,6 +61,24 @@ def walking_score(walking_minutes: float | None, config: AppConfig = CONFIG) -> 
     return 0.0
 
 
+def campus_distance_score(campus_distance_km: float | None) -> float:
+    if campus_distance_km is None:
+        return 0.45
+    if campus_distance_km <= 0.8:
+        return 1.0
+    if campus_distance_km <= 1.5:
+        return 0.9
+    if campus_distance_km <= 2.5:
+        return 0.75
+    if campus_distance_km <= 3.5:
+        return 0.55
+    if campus_distance_km <= 5.0:
+        return 0.3
+    if campus_distance_km <= 7.0:
+        return 0.1
+    return 0.0
+
+
 def safety_band_for_area(area: str | None, config: AppConfig = CONFIG) -> str | None:
     if not area:
         return None
@@ -115,6 +133,12 @@ def enrich_and_score_listing(listing: Listing, config: AppConfig = CONFIG) -> Li
     if not listing.area:
         listing.area = find_area(text_for_area, config.preferred_areas + config.caution_areas)
 
+    if listing.campus_distance_km is None and listing.lat is not None and listing.lon is not None:
+        listing.campus_distance_km = round(
+            haversine_km(listing.lat, listing.lon, config.target_lat, config.target_lon),
+            2,
+        )
+
     if listing.walking_minutes is None and listing.lat is not None and listing.lon is not None:
         listing.walking_minutes = estimate_walking_minutes(
             listing.lat,
@@ -128,11 +152,13 @@ def enrich_and_score_listing(listing: Listing, config: AppConfig = CONFIG) -> Li
 
     listing.all_in_estimate_pcm = estimate_all_in_pcm(listing, config=config)
 
+    # Explicitly score proximity to campus: closer listings get higher scores.
     total = (
-        0.35 * price_score(listing.all_in_estimate_pcm, config=config)
-        + 0.25 * walking_score(listing.walking_minutes, config=config)
-        + 0.20 * safety_score(listing.safety_band)
-        + 0.15 * couple_fit_score(listing)
+        0.30 * price_score(listing.all_in_estimate_pcm, config=config)
+        + 0.20 * walking_score(listing.walking_minutes, config=config)
+        + 0.15 * campus_distance_score(listing.campus_distance_km)
+        + 0.18 * safety_score(listing.safety_band)
+        + 0.12 * couple_fit_score(listing)
         + 0.05 * availability_score(listing.available_from)
     )
     listing.score = round(total * 100, 1)

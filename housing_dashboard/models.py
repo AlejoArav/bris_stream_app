@@ -29,6 +29,7 @@ class Listing:
     description: str | None = None
     area: str | None = None
     walking_minutes: float | None = None
+    campus_distance_km: float | None = None
     safety_band: str | None = None
     all_in_estimate_pcm: float | None = None
     score: float | None = None
