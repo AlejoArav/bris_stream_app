@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -114,6 +115,42 @@ def save_listing(listing: Listing) -> None:
     with get_connection(CONFIG.database_path) as conn:
         upsert_listing(conn, listing)
         conn.commit()
+
+
+def build_source_health_summary(log_df: pd.DataFrame) -> pd.DataFrame:
+    if log_df.empty or "source" not in log_df.columns:
+        return pd.DataFrame()
+    source_rows = log_df[log_df["source"].notna() & (log_df["source"] != "scraper_runner")].copy()
+    if source_rows.empty:
+        return pd.DataFrame()
+    source_rows = source_rows.sort_values("started_at", ascending=False)
+    latest_per_source = source_rows.drop_duplicates(subset=["source"], keep="first").copy()
+
+    price_cov: list[float | None] = []
+    loc_cov: list[float | None] = []
+    for _, row in latest_per_source.iterrows():
+        metrics_raw = row.get("metrics_json")
+        metrics = None
+        if isinstance(metrics_raw, str) and metrics_raw.strip():
+            try:
+                metrics = json.loads(metrics_raw)
+            except Exception:
+                metrics = None
+        price_cov.append(metrics.get("price_coverage") if isinstance(metrics, dict) else None)
+        loc_cov.append(metrics.get("location_coverage") if isinstance(metrics, dict) else None)
+
+    latest_per_source["price_coverage"] = price_cov
+    latest_per_source["location_coverage"] = loc_cov
+    keep_cols = [
+        "source",
+        "status",
+        "quality_status",
+        "inserted_or_updated",
+        "price_coverage",
+        "location_coverage",
+        "started_at",
+    ]
+    return latest_per_source[[col for col in keep_cols if col in latest_per_source.columns]]
 
 
 def filter_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -410,6 +447,21 @@ with tab_runs:
     if log_df.empty:
         st.info("No scraper runs logged yet.")
     else:
+        st.caption("Source health summary (latest run per source)")
+        health_df = build_source_health_summary(log_df)
+        if not health_df.empty:
+            st.dataframe(
+                health_df,
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "price_coverage": st.column_config.NumberColumn("Price coverage", format="%.2f"),
+                    "location_coverage": st.column_config.NumberColumn("Location coverage", format="%.2f"),
+                },
+            )
+        else:
+            st.caption("No per-source scraper health rows yet.")
+
         st.dataframe(log_df, hide_index=True, use_container_width=True)
 
     st.subheader("Backup snapshots")

@@ -2,11 +2,20 @@ from __future__ import annotations
 
 import hashlib
 import re
+from dataclasses import dataclass
 from typing import Any
 
 POSTCODE_RE = re.compile(r"\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b", re.I)
-PRICE_RE = re.compile(r"£\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(pcm|pm|per month|pw|pppw|per week|week)?", re.I)
+PRICE_RE = re.compile(
+    r"(?P<prefix>£|gbp)?\s*(?P<amount>[0-9][0-9,]*(?:\.\d{1,2})?)\s*(?P<period>pcm|pm|per month|monthly|pw|pppw|per week|week|weekly)?",
+    re.I,
+)
 BEDROOM_RE = re.compile(r"\b(studio|[0-9]+\s*(?:bed|beds|bedroom|bedrooms))\b", re.I)
+FALSE_PRICE_CONTEXT_RE = re.compile(
+    r"\b(deposit|holding fee|holding deposit|bond|admin fee|reservation fee|tenancy fee|council tax)\b",
+    re.I,
+)
+PER_PERSON_RE = re.compile(r"\b(pp|per person|each)\b", re.I)
 
 REJECT_KEYWORDS = [
     "house share",
@@ -30,6 +39,15 @@ SELF_CONTAINED_KEYWORDS = [
     "apartment",
     "flat",
 ]
+
+
+@dataclass(frozen=True)
+class PriceCandidate:
+    monthly_amount: float
+    original_amount: float
+    period: str
+    confidence: int
+    context: str
 
 
 def clean_text(value: Any) -> str | None:
@@ -57,17 +75,75 @@ def parse_bool(value: Any) -> bool | None:
     return None
 
 
-def parse_price_pcm(text: str | None) -> float | None:
-    if not text:
-        return None
-    match = PRICE_RE.search(text)
-    if not match:
-        return None
-    amount = float(match.group(1).replace(",", ""))
-    period = (match.group(2) or "pcm").lower()
-    if period in {"pw", "pppw", "per week", "week"}:
+def _amount_to_pcm(amount: float, period: str) -> float:
+    normalized_period = period.lower()
+    if normalized_period in {"pw", "pppw", "per week", "week", "weekly"}:
         return round(amount * 52 / 12, 2)
-    return amount
+    return round(amount, 2)
+
+
+def extract_price_candidates(text: str | None) -> list[PriceCandidate]:
+    if not text:
+        return []
+    out: list[PriceCandidate] = []
+    for match in PRICE_RE.finditer(text):
+        amount_raw = match.group("amount")
+        if not amount_raw:
+            continue
+        period = (match.group("period") or "pcm").lower()
+        full_match = match.group(0) or ""
+        has_currency = bool(match.group("prefix")) or "£" in full_match
+
+        context_start = max(0, match.start() - 40)
+        context_end = min(len(text), match.end() + 40)
+        context = text[context_start:context_end]
+        local_context_start = max(0, match.start() - 16)
+        local_context_end = min(len(text), match.end() + 16)
+        local_context = text[local_context_start:local_context_end]
+        if FALSE_PRICE_CONTEXT_RE.search(local_context):
+            continue
+
+        if not has_currency and not match.group("period"):
+            continue
+
+        try:
+            original_amount = float(amount_raw.replace(",", ""))
+        except ValueError:
+            continue
+        monthly_amount = _amount_to_pcm(original_amount, period)
+        confidence = 0
+        if has_currency:
+            confidence += 3
+        if period in {"pcm", "pm", "per month", "monthly"}:
+            confidence += 2
+        if period in {"pw", "pppw", "per week", "week", "weekly"}:
+            confidence += 1
+        if 300 <= monthly_amount <= 4500:
+            confidence += 2
+        elif monthly_amount < 100 or monthly_amount > 10000:
+            confidence -= 3
+        if PER_PERSON_RE.search(context):
+            confidence -= 1
+
+        out.append(
+            PriceCandidate(
+                monthly_amount=monthly_amount,
+                original_amount=original_amount,
+                period=period,
+                confidence=confidence,
+                context=context.strip(),
+            )
+        )
+
+    out.sort(key=lambda item: (item.confidence, item.monthly_amount), reverse=True)
+    return out
+
+
+def parse_price_pcm(text: str | None) -> float | None:
+    candidates = extract_price_candidates(text)
+    if not candidates:
+        return None
+    return candidates[0].monthly_amount
 
 
 def parse_bedrooms(text: str | None) -> float | None:
@@ -121,3 +197,23 @@ def find_area(text: str | None, known_areas: list[str]) -> str | None:
         if area.lower() in low:
             return area
     return None
+
+
+def resolve_location(
+    selector_address: str | None,
+    jsonld_address: str | None,
+    combined_text: str | None,
+    known_areas: list[str] | None = None,
+) -> tuple[str | None, str | None]:
+    address = clean_text(selector_address) or clean_text(jsonld_address)
+    postcode = extract_postcode(address) or extract_postcode(combined_text)
+
+    if not address and postcode:
+        address = postcode
+
+    if not address and known_areas:
+        area = find_area(combined_text, known_areas)
+        if area:
+            address = area
+
+    return address, postcode

@@ -23,6 +23,7 @@ The project is intentionally modular:
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+python -m playwright install chromium
 cp .env.example .env
 streamlit run app.py
 ```
@@ -98,7 +99,7 @@ This tool is designed for **low-frequency personal use**. Before enabling a sour
 - Keep the interval conservative. The default is 12 hours.
 - Prefer official alerts, RSS feeds, manual imports, or exported saved searches where possible.
 
-The included CSS scraper is generic and only works for simple public/static listing pages. Many commercial portals use dynamic JavaScript and may prohibit automated scraping. For those, use saved-search emails or manual import.
+The scraper now supports both HTTP and headless browser rendering (`render_mode: http|browser`) with source-specific extractor profiles, JSON-LD fallback parsing, and per-source quality gates.
 
 ## Configuration
 
@@ -138,10 +139,15 @@ Notes:
 
 - Set `enabled: true` for at least one source, otherwise the scraper exits immediately with no updates.
 - You can provide selector alternatives with `||`, for example: `card: ".property-card || .listing-card || article"`.
+- Set `render_mode` to `browser` for JavaScript-heavy pages; keep `http` for simpler pages.
+- Optional `fallback_render_mode` can retry with a second render mode if the first parse degrades.
+- `wait_for_selector` and `scroll_steps` help browser mode load lazy/infinite content.
+- `min_quality_price` and `min_quality_location` define per-source quality gates (defaults are both `0.8`).
 - Keep `fallback_to_similar_selectors: true` (default) to let the scraper try common property/listing selectors when configured selectors do not match.
 - Keep `enable_whole_page_block_discovery: true` (default) to scan full-page HTML for property-like blocks when card selectors fail.
 - `allow_if_robots_unavailable: true` (default) allows scraping when robots.txt cannot be fetched.
 - `ignore_robots_restrictions: true` (default) allows scraping even if robots disallows the path.
+- If a source fails its quality gate, that run is logged as `degraded` and new rows from that source are not upserted.
 
 Run once manually:
 
@@ -159,6 +165,7 @@ python -m housing_dashboard.scrapers.scheduler --sources sources.yaml
 
 - The Streamlit app can run one scrape automatically at startup when `RUN_ON_STARTUP=true`.
 - In the **Run log** tab, use **Run web scrape now** for on-demand scraping.
+- The **Run log** tab includes a source health summary with price/location coverage from each source's latest run.
 - Every scrape writes a timestamped JSON backup and updates `latest_scrape_backup.json` in `SCRAPE_BACKUPS_DIR`.
 
 ## How scoring works

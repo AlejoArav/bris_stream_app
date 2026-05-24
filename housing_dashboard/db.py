@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS run_log (
     finished_at TEXT,
     source TEXT,
     status TEXT NOT NULL,
+    quality_status TEXT,
+    metrics_json TEXT,
     message TEXT,
     inserted_or_updated INTEGER DEFAULT 0
 );
@@ -82,7 +84,17 @@ def get_connection(db_path: str | Path) -> sqlite3.Connection:
 def init_db(db_path: str | Path) -> None:
     with get_connection(db_path) as conn:
         conn.executescript(SCHEMA)
+        _ensure_column(conn, "run_log", "quality_status", "TEXT")
+        _ensure_column(conn, "run_log", "metrics_json", "TEXT")
         conn.commit()
+
+
+def _ensure_column(conn: sqlite3.Connection, table_name: str, column_name: str, column_type: str) -> None:
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    existing = {row["name"] if isinstance(row, sqlite3.Row) else row[1] for row in rows}
+    if column_name in existing:
+        return
+    conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
 
 
 def _to_db_bool(value: bool | None) -> int | None:
@@ -227,13 +239,27 @@ def insert_run_log(
     message: str | None,
     inserted_or_updated: int = 0,
     finished_at: str | None = None,
+    quality_status: str | None = None,
+    metrics: dict | None = None,
 ) -> None:
+    metrics_json = json.dumps(metrics, ensure_ascii=False) if metrics is not None else None
     conn.execute(
         """
-        INSERT INTO run_log (started_at, finished_at, source, status, message, inserted_or_updated)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO run_log (
+            started_at, finished_at, source, status, quality_status, metrics_json, message, inserted_or_updated
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (started_at, finished_at, source, status, message, inserted_or_updated),
+        (
+            started_at,
+            finished_at,
+            source,
+            status,
+            quality_status,
+            metrics_json,
+            message,
+            inserted_or_updated,
+        ),
     )
 
 

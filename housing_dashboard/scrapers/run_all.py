@@ -29,6 +29,7 @@ def _log_runner_event(status: str, message: str, source: str = "scraper_runner")
             finished_at=now_utc_iso(),
             source=source,
             status=status,
+            quality_status=status if status in {"healthy", "degraded"} else None,
             message=message,
             inserted_or_updated=0,
         )
@@ -61,32 +62,40 @@ def run_all_scrapers(sources_path: str | Path = "sources.yaml", trigger: str = "
             try:
                 result = scraper.scrape()
                 count = 0
+                quality_status = result.quality_status if result.quality_status in {"healthy", "degraded"} else "healthy"
+                log_status = "degraded" if quality_status == "degraded" else "success"
+                log_message = result.message
+                if quality_status == "degraded" and result.quality_gate_reason:
+                    log_message = f"{result.message} Gate: {result.quality_gate_reason}"
                 with get_connection(CONFIG.database_path) as conn:
-                    for listing in result.listings:
-                        if listing.lat is None or listing.lon is None:
-                            lat, lon, postcode = enrich_coordinates(
-                                listing.address_text,
-                                listing.postcode,
-                                CONFIG.nominatim_user_agent,
-                                CONFIG.enable_online_enrichment,
-                            )
-                            listing.lat = lat or listing.lat
-                            listing.lon = lon or listing.lon
-                            listing.postcode = postcode or listing.postcode
-                        listing = enrich_and_score_listing(listing)
-                        upsert_listing(conn, listing)
-                        count += 1
+                    if quality_status != "degraded":
+                        for listing in result.listings:
+                            if listing.lat is None or listing.lon is None:
+                                lat, lon, postcode = enrich_coordinates(
+                                    listing.address_text,
+                                    listing.postcode,
+                                    CONFIG.nominatim_user_agent,
+                                    CONFIG.enable_online_enrichment,
+                                )
+                                listing.lat = lat or listing.lat
+                                listing.lon = lon or listing.lon
+                                listing.postcode = postcode or listing.postcode
+                            listing = enrich_and_score_listing(listing)
+                            upsert_listing(conn, listing)
+                            count += 1
                     insert_run_log(
                         conn,
                         started_at=started,
                         finished_at=now_utc_iso(),
                         source=result.source,
-                        status="success",
-                        message=result.message,
+                        status=log_status,
+                        quality_status=quality_status,
+                        metrics=result.metrics,
+                        message=log_message,
                         inserted_or_updated=count,
                     )
                     conn.commit()
-                print(f"[{result.source}] {result.message}")
+                print(f"[{result.source}] {log_message}")
                 total += count
             except Exception as exc:
                 with get_connection(CONFIG.database_path) as conn:
@@ -96,6 +105,7 @@ def run_all_scrapers(sources_path: str | Path = "sources.yaml", trigger: str = "
                         finished_at=now_utc_iso(),
                         source=getattr(scraper, "source_name", "unknown"),
                         status="error",
+                        quality_status="error",
                         message=repr(exc),
                         inserted_or_updated=0,
                     )

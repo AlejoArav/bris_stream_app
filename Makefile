@@ -1,4 +1,4 @@
-.PHONY: install run scrape schedule docker-up
+.PHONY: install run scrape schedule docker-up test
 
 install:
 	python -m pip install -r requirements.txt
@@ -14,3 +14,6 @@ schedule:
 
 docker-up:
 	docker compose up --build
+
+test:
+	python -m pytest -q
